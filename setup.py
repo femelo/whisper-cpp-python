@@ -1,6 +1,4 @@
 from skbuild import setup
-import skbuild.constants
-import shutil
 
 from pathlib import Path
 
@@ -97,7 +95,6 @@ class WhisperCppFileGen():
 
     def _process(self):
         for node in self.ast:
-            to_pop = None
             typ = WhisperCppFileGen.get_nested_type(node)
             if typ == c_ast.FuncDecl:
                 self.format_function(node)
@@ -172,7 +169,7 @@ class WhisperCppFileGen():
             ret = ret if ret else 'None'
             return 'ctypes.CFUNCTYPE(' + ret + (', ' if len(params) > 0 else '') + ', '.join(params) + ')'
         if typ == c_ast.PtrDecl:
-            if node.type and type(node.type) == c_ast.FuncDecl:
+            if node.type and type(node.type) is c_ast.FuncDecl:
                 return self.get_ctypes_type(node.type)
             return 'ctypes.POINTER(' + self.get_ctypes_type(node.type) + ')'
         if typ == c_ast.Struct:
@@ -248,5 +245,3 @@ if __name__ == '__main__':
     c_header_file = "vendor/whisper.cpp/whisper.h"
     file_gen = WhisperCppFileGen(c_header_file)
     file_gen.output(dest_dir / "whisper_cpp.py")
-
-
