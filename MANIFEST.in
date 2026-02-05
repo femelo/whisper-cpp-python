@@ -407,4 +407,6 @@ include vendor/whisper.cpp/whisper.cpp
 include vendor/whisper.cpp/whisper.h
 include whisper_cpp_python/__init__.py
 include whisper_cpp_python/whisper.py
+include whisper_cpp_python/constants.py
+include whisper_cpp_python/utils.py
 exclude MANIFEST.in

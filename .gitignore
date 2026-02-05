@@ -6,3 +6,4 @@ whisper_cpp_python/whisper_cpp.py
 *.dll
 *.dylib
 __pycache__/
+whisper_cpp_python.egg-info/
