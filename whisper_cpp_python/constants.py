@@ -11,6 +11,7 @@ xdg_data_home = (
 # MODELS URL MODELS_BASE_URL+ '/' + MODELS_PREFIX_URL+'-'+MODEL_NAME+'.bin'
 # example = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
 MODELS_BASE_URL = "https://huggingface.co/ggerganov/whisper.cpp"
+MODELS_PREFIX = "ggml"
 MODELS_PREFIX_URL = "resolve/main/ggml"
 
 MODELS_DIR = xdg_data_home / "whisper-cpp-python" / 'models'

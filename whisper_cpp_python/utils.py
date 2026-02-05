@@ -18,6 +18,7 @@ from .constants import (
     AVAILABLE_MODELS,
     MODELS_BASE_URL,
     MODELS_DIR,
+    MODELS_PREFIX,
     MODELS_PREFIX_URL,
 )
 
@@ -49,7 +50,7 @@ def get_file_path(model_name: str, download_dir: str | None = None) -> Path:
 
     os.makedirs(download_dir, exist_ok=True)
 
-    file_path = Path(download_dir) / f"{MODELS_PREFIX_URL}-{model_name}.bin"
+    file_path = Path(download_dir) / f"{MODELS_PREFIX}-{model_name}.bin"
     return file_path
 
 
