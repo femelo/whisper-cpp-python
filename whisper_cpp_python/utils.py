@@ -244,7 +244,7 @@ def redirect_stderr(to: bool | TextIO | str | None = False) -> None | Generator:
         yield
         return
 
-    def _resolve_target(target: "FileDescriptorOrPath" | None) -> tuple[TextIO, bool]:
+    def _resolve_target(target: str | TextIO | None) -> tuple[TextIO, bool]:
         opened_stream = None
         if target is None:
             opened_stream = open(os.devnull, "w")
