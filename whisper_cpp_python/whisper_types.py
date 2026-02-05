@@ -1,5 +1,5 @@
-from typing import List, Optional, Dict, Union
-from typing_extensions import TypedDict, NotRequired, Literal
+from typing import List
+from typing_extensions import TypedDict, Literal
 
 class WhisperToken(TypedDict):
     id: int

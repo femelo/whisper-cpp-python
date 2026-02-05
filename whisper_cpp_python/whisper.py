@@ -1,14 +1,20 @@
+import os
+from pathlib import Path
 from . import whisper_cpp
 from .whisper_types import WhisperResult, WhisperSegment, WhisperToken
+from .utils import download_model
 from typing import List, Literal, Any
 import ctypes
 import librosa
 
 
-class Whisper():
+class Whisper:
     WHISPER_SR = 16000
 
-    def __init__(self, model_path, strategy = 0, n_threads = 1):
+    def __init__(self, model: str | Path, strategy: int = 0, n_threads: int = 1) -> None:
+        if isinstance(model, Path):
+            model = str(model)
+        model_path: str = model if os.path.isfile(model) else download_model(model)
         self.context = whisper_cpp.whisper_init_from_file(model_path.encode('utf-8'))
         self.params  = whisper_cpp.whisper_full_default_params(strategy)
         self.params.n_threads = n_threads
@@ -17,7 +23,14 @@ class Whisper():
         self.params.print_realtime = False
         self.params.print_timestamps = False
 
-    def transcribe(self, file, prompt = None, response_format = 'json', temperature = 0.8, language = 'en') -> Any:
+    def transcribe(
+        self,
+        file: str | Path,
+        prompt: str | None = None,
+        response_format: str = 'json',
+        temperature: float = 0.8,
+        language: str = 'en',
+    ) -> Any:
         data, sr = librosa.load(file, sr=Whisper.WHISPER_SR)
         self.params.language = language.encode('utf-8')
         if prompt:
@@ -26,7 +39,7 @@ class Whisper():
         result = self._full(data)
         return self._parse_format(result, response_format)
 
-    def translate(self, file, prompt = None, response_format = 'json', temperature = 0.8) -> Any:
+    def translate(self, file, prompt = None, response_format = 'json', temperature = 0.8) -> dict[str, Any]:
         data, sr = librosa.load(file, sr=Whisper.WHISPER_SR)
         self.params.translate = True
         self.params.initial_prompt = prompt.encode('utf-8')
@@ -38,7 +51,7 @@ class Whisper():
         # run the inference
         r = whisper_cpp.whisper_full(ctypes.c_void_p(self.context), self.params, data.ctypes.data_as(ctypes.POINTER(ctypes.c_float)), len(data))
         if r != 0:
-            raise "Error: {}".format(result)
+            raise "Error: {}".format(r)
 
         result: WhisperResult = {
             "task": "translate" if self.params.translate else "transcribe",
@@ -50,8 +63,8 @@ class Whisper():
         all_text = ''
         n_segments = whisper_cpp.whisper_full_n_segments(ctypes.c_void_p(self.context))
         for i in range(n_segments):
-            t0  = whisper_cpp.whisper_full_get_segment_t0(ctypes.c_void_p(self.context), i)/100.0
-            t1  = whisper_cpp.whisper_full_get_segment_t1(ctypes.c_void_p(self.context), i)/100.0
+            t0  = whisper_cpp.whisper_full_get_segment_t0(ctypes.c_void_p(self.context), i) / 100.0
+            t1  = whisper_cpp.whisper_full_get_segment_t1(ctypes.c_void_p(self.context), i) / 100.0
             txt = whisper_cpp.whisper_full_get_segment_text(ctypes.c_void_p(self.context), i).decode('utf-8')
             all_text += txt
             n_tokens = whisper_cpp.whisper_full_n_tokens(ctypes.c_void_p(self.context), i)
@@ -76,7 +89,7 @@ class Whisper():
         result["text"] = all_text.strip()
         return result
 
-    def _parse_format(self, result: WhisperResult, response_format: Literal["json", "text", "srt", "verbose_json", "vtt"]):
+    def _parse_format(self, result: WhisperResult, response_format: Literal["json", "text", "srt", "verbose_json", "vtt"]) -> dict[str, Any]:
         return {
             "json": self._parse_format_json,
             "text": self._parse_format_text,
@@ -85,7 +98,7 @@ class Whisper():
             "vtt": self._parse_format_vtt,
         }[response_format](result)
 
-    def _parse_format_verbose_json(self, result: WhisperResult):
+    def _parse_format_verbose_json(self, result: WhisperResult) -> dict[str, Any]:
         return {
             "task": result["task"],
             "language": result["language"],
@@ -106,32 +119,57 @@ class Whisper():
             } for i, s in enumerate(result["segments"])],
         }
 
-    def _parse_format_json(self, result: WhisperResult):
+    def _parse_format_json(self, result: WhisperResult) -> dict[str, Any]:
         return {
             "text": result["text"],
         }
 
-    def _parse_format_text(self, result: WhisperResult):
+    def _parse_format_text(self, result: WhisperResult) -> str:
         return result["text"]
 
-    def _parse_format_srt(self, result: WhisperResult):
-        return '\n'.join([f'{i + 1}\n{Whisper.format_time(s["start"])} --> {Whisper.format_time(s["end"])}\n{s["text"]}\n' for i, s in enumerate(result["segments"])])
+    def _parse_format_srt(self, result: WhisperResult) -> str:
+        output_tmpl = "{}\n{} --> {}\n{}\n"
+        return "\n".join(
+            [
+                output_tmpl.format(
+                    i + 1,
+                    Whisper.format_time(s["start"]),
+                    Whisper.format_time(s["end"]),
+                    s["text"]
+                ) for i, s in enumerate(result["segments"])
+            ]
+        )
 
-    def _parse_format_vtt(self, result: WhisperResult):
-        return '\n'.join([f'{i + 1}\n{Whisper.format_time(s["start"])} --> {Whisper.format_time(s["end"])} align:middle\n{s["text"]}\n' for i, s in enumerate(result["segments"])])
+    def _parse_format_vtt(self, result: WhisperResult) -> str:
+        output_tmpl = "{}\n{} --> {} align:middle\n{}\n"
+        return "\n".join(
+            [
+                output_tmpl.format(
+                    i + 1,
+                    Whisper.format_time(s["start"]),
+                    Whisper.format_time(s["end"]),
+                    s["text"]
+                ) for i, s in enumerate(result["segments"])
+            ]
+        )
 
-    def __dealloc__(self):
+    def __dealloc__(self) -> None:
         # free the memory
         whisper_cpp.whisper_free(ctypes.c_void_p(self.context))
 
     @staticmethod
-    def format_time(t: int):
-        msec = t * 10
-        hr = msec / (1000 * 60 * 60)
-        msec = msec - hr * (1000 * 60 * 60)
-        minu = msec / (1000 * 60)
-        msec = msec - minu * (1000 * 60)
-        sec = msec / 1000
-        msec = msec - sec * 1000
-        return f'{int(hr):02}:{int(minu):02}:{int(sec):02}.{int(msec):03}'
+    def format_time(t: int) -> str:
+        ms = t * 10
+        h = ms / (1000 * 60 * 60)
+        ms = ms - h * (1000 * 60 * 60)
+        m = ms / (1000 * 60)
+        ms = ms - m * (1000 * 60)
+        s = ms / 1000
+        ms = ms - s * 1000
+        return "{:02}:{:02}:{:02}.{:03}".format(
+            h,
+            m,
+            s,
+            ms,
+        )
 
